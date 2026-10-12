@@ -2,7 +2,8 @@ import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
 import type { Review } from '../types'
-import { buildFeedback, noteCount } from './feedback'
+import { describeCounts, diffLines } from './diff'
+import { buildFeedback, countFeedbackLines, FEEDBACK_HEADER, noteCount } from './feedback'
 
 const planPath = atom({ plugin: 'plan-abc', key: 'planPath' } as const, null)
 const history = atom({ plugin: 'plan-abc', key: 'history' } as const, [])
@@ -15,6 +16,17 @@ type Decision = { kind: 'continue' } | { kind: 'feedback'; text: string }
 // $.state read inside one dispatch sees the same moment, so the held
 // tool.call hook would never see a write made after it started.
 const decisions = new Map<string, Decision>()
+
+// The element the band's focus ring is on, as the last ui.focus left it.
+let ringOn: string | undefined
+
+// The bar's focusable elements in the order it draws them.
+const BAR_ORDER = ['up', 'down', 'comment', 'continue', 'feedback']
+
+// Git-like colors from the person's theme.
+const ADDED = 'success'
+const REMOVED = 'error'
+const COMMENT = 'inactive'
 
 // A wait run as a host process: unlike $.clock.sleep it does not spend the
 // hook's 10 s budget. `sleep` is missing on Windows, so fall back to a local
@@ -49,13 +61,13 @@ async function move($: EngineInterface, delta: number): Promise<void> {
   $.ui.scroll({ to: { key: `line-${n}` }, block: 'center' }).catch(() => {})
 }
 
-function saveNote($: EngineInterface, n: number, text: string): void {
+function saveNote($: EngineInterface, text: string): void {
   const comment = text.trim()
   update($, review, r => {
-    if (r === null) return r
+    if (r === null || r.selected === null) return r
     const notes = { ...r.notes }
-    if (comment === '') delete notes[String(n)]
-    else notes[String(n)] = comment
+    if (comment === '') delete notes[String(r.selected)]
+    else notes[String(r.selected)] = comment
     return { ...r, notes }
   })
 }
@@ -68,11 +80,6 @@ async function sendFeedback($: EngineInterface, toolUseId: string): Promise<void
     return
   }
   decisions.set(toolUseId, { kind: 'feedback', text: buildFeedback(r) })
-}
-
-function quoteShort(line: string): string {
-  const text = line.trim()
-  return text.length > 40 ? `${text.slice(0, 39)}…` : text
 }
 
 export const register: Register = on => {
@@ -106,11 +113,13 @@ export const register: Register = on => {
     await update($, history, () => all)
     if (isRevision) await update($, revisionPending, () => false)
 
+    const before = all.length > 1 ? all[all.length - 2] : undefined
     const current: Review = {
       toolUseId: e.tool_use_id,
       path,
       version: all.length,
       lines: text.split(/\r?\n/),
+      previous: before === undefined ? null : before.split(/\r?\n/),
       notes: {},
       selected: null,
     }
@@ -134,11 +143,19 @@ export const register: Register = on => {
       await update($, revisionPending, () => true)
       return { deny: decision.text }
     }
-    return next(e)
+
+    const result = await next(e)
+    // Refused in the engine's dialog ("Tell Claude what to change", "keep
+    // planning"): the plan that comes back next is a revision of this one.
+    if (!next.signal.aborted && (result.deny !== undefined || result.isError === true)) {
+      await update($, revisionPending, () => true)
+    }
+    return result
   }).catch(($, e, next) => next(e))
 
-  // The plan at full height in its own transcript row. Each line is a plain
-  // button: a click selects it for a comment in the bar above the prompt.
+  // The plan at full height in its own transcript row, colored against the
+  // previous version. Each current line is a plain button: a click selects it
+  // for a comment in the bar above the prompt.
   on('ui.render', { component: 'ToolUse' }, async ($, e, next) => {
     if (e.props.tool !== 'ExitPlanMode') return next(e)
     const current = await read($, review)
@@ -147,6 +164,8 @@ export const register: Register = on => {
     const { Box, Button, Text } = $.ui.resolve(e)
     const width = String(current.lines.length).length
     const count = noteCount(current)
+    const diff = current.previous === null ? null : diffLines(current.previous, current.lines)
+    const num = (n: number) => String(n).padStart(width)
 
     const controls = (where: string) => {
       const items = [
@@ -161,48 +180,89 @@ export const register: Register = on => {
         </Button>,
       ]
       if (count > 0) {
-        items.push(<Text key={`gap-${where}`}> </Text>)
         items.push(
           <Button key={`feedback-${where}`} onPress={() => sendFeedback($, current.toolUseId)}>
             Send feedback ({count})
           </Button>,
         )
       }
-      return <Box flexDirection="row">{items}</Box>
+      return (
+        <Box flexDirection="row" flexWrap="wrap" gap={1}>
+          {items}
+        </Box>
+      )
     }
+
+    const lineRow = (n: number, text: string, color?: string) => {
+      const note = current.notes[String(n)]
+      return (
+        <Box key={`row-${n}`} flexDirection="column">
+          <Button key={`line-${n}`} plain onPress={() => select($, n)}>
+            <Text dimColor>{num(n)} </Text>
+            <Text color={color} inverse={current.selected === n}>
+              {text === '' ? ' ' : text}
+            </Text>
+          </Button>
+          {note !== undefined && (
+            <Box paddingLeft={width + 1}>
+              <Text color={COMMENT}>{note}</Text>
+            </Box>
+          )}
+        </Box>
+      )
+    }
+
+    const removedRow = (key: string, n: number, text: string) => (
+      <Box key={key} flexDirection="row">
+        <Text dimColor>{num(n)} </Text>
+        <Text color={REMOVED} strikethrough>
+          {text === '' ? ' ' : text}
+        </Text>
+      </Box>
+    )
+
+    const plan = diff
+      ? diff.rows.map((row, i) =>
+          row.kind === 'removed'
+            ? removedRow(`removed-${i}`, row.line, row.text)
+            : lineRow(row.line, row.text, row.kind === 'added' ? ADDED : undefined),
+        )
+      : current.lines.map((line, i) => lineRow(i + 1, line))
 
     return (
       <Box flexDirection="column">
-        <Text bold>Plan ABC · version {current.version}</Text>
+        <Text bold>
+          Plan ABC · version {current.version}
+          {diff ? ` · ${describeCounts(diff.counts)}` : ''}
+        </Text>
         {controls('top')}
-        {current.lines.map((line, i) => {
-          const n = i + 1
-          const note = current.notes[String(n)]
-          const rows = [
-            <Button key={`line-${n}`} plain onPress={() => select($, n)}>
-              <Text dimColor>{String(n).padStart(width)} </Text>
-              <Text inverse={current.selected === n}>{line === '' ? ' ' : line}</Text>
-            </Button>,
-          ]
-          if (note !== undefined) {
-            rows.push(
-              <Box key={`note-${n}`} paddingLeft={width + 5}>
-                <Text color="gray">{note}</Text>
-              </Box>,
-            )
-          }
-          return (
-            <Box key={`row-${n}`} flexDirection="column">
-              {rows}
-            </Box>
-          )
-        })}
+        <Box flexDirection="column" marginTop={1}>
+          {plan}
+        </Box>
         {controls('bottom')}
       </Box>
     )
   })
 
+  // Sent feedback is a refusal to the engine, which draws it as an error.
+  // Draw it as what it is.
+  on('ui.render', { component: 'ToolResult' }, ($, e, next) => {
+    if (e.props.tool !== 'ExitPlanMode' || !e.props.isErrored) return next(e)
+    const output = typeof e.props.output === 'string' ? e.props.output : JSON.stringify(e.props.output ?? '')
+    if (!output.includes(FEEDBACK_HEADER)) return next(e)
+    const n = countFeedbackLines(output)
+    const { Text } = $.ui.resolve(e)
+    return (
+      <Text color="suggestion">
+        Plan ABC · feedback sent · {n} comment{n === 1 ? '' : 's'}
+      </Text>
+    )
+  })
+
   // A short bar above the prompt that never scrolls: the controls stay in reach.
+  // In focus order the ↑ ↓ buttons come before the comment field and the
+  // actions after it, so the arrow keys step off the field onto one side or
+  // the other (see the ui.focus hook below). BAR_ORDER lists that order.
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
     const current = await read($, review)
     if (current === null || e.props.hasSurvey) return next(e)
@@ -212,63 +272,77 @@ export const register: Register = on => {
     const { Box, Button, Input, Text } = $.ui.resolve(e)
     const count = noteCount(current)
     const n = current.selected
+    const diff = current.previous === null ? null : diffLines(current.previous, current.lines)
 
-    const comment =
-      n === null ? (
-        <Text dimColor>Click a plan line to comment on it, or use ↑ ↓ here</Text>
-      ) : (
-        <Input
-          key={`comment-${n}`}
-          label={`Line ${n} "${quoteShort(current.lines[n - 1] ?? '')}": `}
-          placeholder="type a comment (empty removes it)"
-          value={current.notes[String(n)] ?? ''}
-          submitLabel="save"
-          autoFocus
-          onSubmit={value => saveNote($, n, value)}
-        />
-      )
-
-    const buttons = [
-      <Button key="prev" hotkey="k" onPress={() => move($, -1)}>
-        ↑ line
-      </Button>,
-      <Button key="next" hotkey="j" onPress={() => move($, 1)}>
-        ↓ line
-      </Button>,
-    ]
-    if (count > 0) {
-      buttons.push(
-        <Button key="feedback" hotkey="2" onPress={() => sendFeedback($, current.toolUseId)}>
-          Send feedback ({count})
-        </Button>,
-      )
-    }
-    buttons.push(
+    const actions = [
       <Button
         key="continue"
         hotkey="1"
         variant="primary"
-        autoFocus
         onPress={() => {
           decisions.set(current.toolUseId, { kind: 'continue' })
         }}
       >
         Continue to approval
       </Button>,
-    )
+    ]
+    if (count > 0) {
+      actions.push(
+        <Button key="feedback" hotkey="2" onPress={() => sendFeedback($, current.toolUseId)}>
+          Send feedback ({count})
+        </Button>,
+      )
+    }
 
     return (
       <Box flexDirection="column">
         <Text>
-          <Text bold>Plan ABC</Text> · version {current.version} · {count} comment{count === 1 ? '' : 's'} · plan
-          shown above
+          <Text bold>Plan ABC</Text> · version {current.version}
+          {diff ? ` · ${describeCounts(diff.counts)}` : ''} · {count} comment{count === 1 ? '' : 's'}
         </Text>
-        {comment}
         <Box flexDirection="row" gap={1}>
-          {buttons}
+          <Button key="up" hotkey="k" onPress={() => move($, -1)}>
+            ↑
+          </Button>
+          <Button key="down" hotkey="j" onPress={() => move($, 1)}>
+            ↓
+          </Button>
+          <Input
+            key="comment"
+            placeholder={n === null ? 'Pick a line' : `Comment on line ${n}`}
+            value={n === null ? '' : (current.notes[String(n)] ?? '')}
+            submitLabel="save"
+            autoFocus
+            onSubmit={value => {
+              if (n === null) $.ui.toast('Plan ABC: pick a line first (↑ ↓ or click it)')
+              else saveNote($, value)
+            }}
+          />
+        </Box>
+        <Box flexDirection="row" flexWrap="wrap" gap={1}>
+          {actions}
         </Box>
       </Box>
     )
+  })
+
+  // ↑/↓ while the comment field has the keys: the ring would step off it,
+  // backward onto ↓ or forward onto the first action. Move the selected line
+  // that way instead and keep the ring in the field. (Tab steps the same way
+  // and cannot be told apart, so it moves the line too.)
+  on('ui.focus', { component: 'AbovePrompt' }, async ($, e, next) => {
+    const from = BAR_ORDER.indexOf('comment')
+    const to = e.element === undefined ? -1 : BAR_ORDER.indexOf(e.element)
+    const isStepOff = e.origin.kind === 'person' && ringOn === 'comment' && e.plugin === 'plan-abc' && to >= 0
+    if (isStepOff && to !== from) {
+      await move($, to < from ? -1 : 1)
+      const kept = await next({ ...e, element: 'comment' })
+      if (kept.deny === undefined) ringOn = 'comment'
+      return kept
+    }
+    const moved = await next(e)
+    if (moved.deny === undefined) ringOn = e.element
+    return moved
   })
 
   on('ui.render', { component: 'Spinner' }, async ($, e, next) => {

@@ -3,6 +3,8 @@ export type Review = {
   path: string
   version: number
   lines: string[]
+  // The version before this one, for the diff; null for version 1.
+  previous: string[] | null
   // Comments by 1-based line number.
   notes: Record<string, string>
   selected: number | null
