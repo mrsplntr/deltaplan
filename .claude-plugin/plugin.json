@@ -1,0 +1,6 @@
+{
+  "name": "plan-abc",
+  "version": "0.1.0",
+  "description": "Review, comment on and diff Claude's plan before approving it",
+  "types": "./types/index.d.ts"
+}
