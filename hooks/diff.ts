@@ -5,8 +5,8 @@ export type DiffRow =
   | { kind: 'same'; line: number; text: string }
   | { kind: 'added'; line: number; text: string; isChange: boolean }
   // `line` is where the removed text stood in the new version: the number of
-  // the new line that now follows it.
-  | { kind: 'removed'; line: number; text: string; isChange: boolean }
+  // the new line that now follows it. `from` is its line in the old version.
+  | { kind: 'removed'; line: number; from: number; text: string; isChange: boolean }
 
 export type DiffCounts = { changed: number; added: number; removed: number }
 
@@ -19,7 +19,7 @@ const MAX_CELLS = 4_000_000
 export function diffLines(before: readonly string[], after: readonly string[]): Diff {
   const n = before.length
   const m = after.length
-  const ops: { kind: 'same' | 'added' | 'removed'; text: string }[] = []
+  const ops: { kind: 'same' | 'added' | 'removed'; text: string; from?: number }[] = []
 
   if (n * m <= MAX_CELLS) {
     // lengths[i][j]: the common subsequence of before[i..] and after[j..].
@@ -40,15 +40,15 @@ export function diffLines(before: readonly string[], after: readonly string[]): 
         i++
         j++
       } else if (lengths[i + 1]![j]! >= lengths[i]![j + 1]!) {
-        ops.push({ kind: 'removed', text: before[i++]! })
+        ops.push({ kind: 'removed', text: before[i]!, from: ++i })
       } else {
         ops.push({ kind: 'added', text: after[j++]! })
       }
     }
-    while (i < n) ops.push({ kind: 'removed', text: before[i++]! })
+    while (i < n) ops.push({ kind: 'removed', text: before[i]!, from: ++i })
     while (j < m) ops.push({ kind: 'added', text: after[j++]! })
   } else {
-    for (const text of before) ops.push({ kind: 'removed', text })
+    before.forEach((text, k) => ops.push({ kind: 'removed', text, from: k + 1 }))
     for (const text of after) ops.push({ kind: 'added', text })
   }
 
@@ -65,18 +65,18 @@ export function diffLines(before: readonly string[], after: readonly string[]): 
       k++
       continue
     }
-    const removed: string[] = []
+    const removed: { text: string; from: number }[] = []
     const added: string[] = []
     while (k < ops.length && ops[k]!.kind !== 'same') {
       const o = ops[k++]!
-      if (o.kind === 'removed') removed.push(o.text)
+      if (o.kind === 'removed') removed.push({ text: o.text, from: o.from! })
       else added.push(o.text)
     }
     const pairs = Math.min(removed.length, added.length)
     counts.changed += pairs
     counts.removed += removed.length - pairs
     counts.added += added.length - pairs
-    removed.forEach((text, r) => rows.push({ kind: 'removed', line: next + r, text, isChange: r < pairs }))
+    removed.forEach(({ text, from }, r) => rows.push({ kind: 'removed', line: next + r, from, text, isChange: r < pairs }))
     added.forEach((text, a) => rows.push({ kind: 'added', line: next + a, text, isChange: a < pairs }))
     next += added.length
   }

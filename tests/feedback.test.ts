@@ -24,3 +24,20 @@ test('feedback lists notes in line order, quoting each line', () => {
   )
   expect(countFeedbackLines(buildFeedback(review))).toBe(2)
 })
+
+test('feedback quotes the Markdown as written, and a diagram or table by its range', () => {
+  const plan: Review = {
+    ...review,
+    lines: ['## Use **Redis**', '```mermaid', 'graph TD', '  A --> B', '```', '| A | B |', '|---|---|', '| 1 | 2 |'],
+    notes: { '1': 'Why bold?', '2': 'Add a cache box', '6': 'Add a column' },
+  }
+  expect(buildFeedback(plan)).toBe(
+    [
+      'The user reviewed the plan in Plan ABC. Revise the plan and submit it again.',
+      'Line 1 "## Use **Redis**": comment — Why bold?',
+      'Lines 2-5 (diagram) "```mermaid": comment — Add a cache box',
+      'Lines 6-8 (table) "| A | B |": comment — Add a column',
+    ].join('\n'),
+  )
+  expect(countFeedbackLines(buildFeedback(plan))).toBe(3)
+})
