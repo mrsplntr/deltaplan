@@ -1,5 +1,5 @@
 import { atom, read, update } from 'claude-code'
-import type { EngineInterface, Register } from 'claude-code'
+import type { EngineInterface, Register, RenderChildren } from 'claude-code'
 
 import type { Review } from '../types'
 import { describeCounts, diffLines } from './diff'
@@ -27,6 +27,9 @@ const BAR_ORDER = ['up', 'down', 'comment', 'continue', 'feedback']
 const ADDED = 'success'
 const REMOVED = 'error'
 const COMMENT = 'inactive'
+
+// The diff gutter's width in columns: the symbol with a space either side.
+const GUTTER = 3
 
 // A wait run as a host process: unlike $.clock.sleep it does not spend the
 // hook's 10 s budget. `sleep` is missing on Windows, so fall back to a local
@@ -165,7 +168,23 @@ export const register: Register = on => {
     const width = String(current.lines.length).length
     const count = noteCount(current)
     const diff = current.previous === null ? null : diffLines(current.previous, current.lines)
-    const num = (n: number) => String(n).padStart(width)
+
+    // One row of the plan as columns, like a CSS grid: the line number, a
+    // fixed 3-wide gutter for the diff symbol, then the text, which wraps
+    // inside its own column so continuation lines stay under the text.
+    const columns = (key: string, n: number | null, symbol: string, symbolColor: string | undefined, body: RenderChildren) => (
+      <Box key={key} flexDirection="row">
+        <Box width={width} flexShrink={0} justifyContent="flex-end">
+          <Text dimColor>{n === null ? '' : String(n)}</Text>
+        </Box>
+        <Box width={GUTTER} flexShrink={0} justifyContent="center">
+          <Text color={symbolColor}>{symbol}</Text>
+        </Box>
+        <Box flexGrow={1} flexShrink={1}>
+          {body}
+        </Box>
+      </Box>
+    )
 
     const controls = (where: string) => {
       const items = [
@@ -193,41 +212,37 @@ export const register: Register = on => {
       )
     }
 
-    const lineRow = (n: number, text: string, color?: string) => {
+    const lineRow = (n: number, text: string, isAdded: boolean) => {
       const note = current.notes[String(n)]
       return (
         <Box key={`row-${n}`} flexDirection="column">
-          <Button key={`line-${n}`} plain onPress={() => select($, n)}>
-            <Text dimColor>{num(n)} </Text>
-            <Text color={color} inverse={current.selected === n}>
-              {text === '' ? ' ' : text}
-            </Text>
-          </Button>
-          {note !== undefined && (
-            <Box paddingLeft={width + 1}>
-              <Text color={COMMENT}>{note}</Text>
-            </Box>
+          {columns(
+            `text-${n}`,
+            n,
+            isAdded ? '+' : '',
+            ADDED,
+            <Button key={`line-${n}`} plain onPress={() => select($, n)}>
+              <Text color={isAdded ? ADDED : undefined} inverse={current.selected === n}>
+                {text === '' ? ' ' : text}
+              </Text>
+            </Button>,
           )}
+          {note !== undefined && columns(`note-${n}`, null, '', undefined, <Text color={COMMENT}>{note}</Text>)}
         </Box>
       )
     }
 
-    const removedRow = (key: string, n: number, text: string) => (
-      <Box key={key} flexDirection="row">
-        <Text dimColor>{num(n)} </Text>
-        <Text color={REMOVED} strikethrough>
-          {text === '' ? ' ' : text}
-        </Text>
-      </Box>
-    )
+    // A removed line is no longer in the plan: no number, nothing to click.
+    const removedRow = (key: string, text: string) =>
+      columns(key, null, '-', REMOVED, <Text color={REMOVED}>{text === '' ? ' ' : text}</Text>)
 
     const plan = diff
       ? diff.rows.map((row, i) =>
           row.kind === 'removed'
-            ? removedRow(`removed-${i}`, row.line, row.text)
-            : lineRow(row.line, row.text, row.kind === 'added' ? ADDED : undefined),
+            ? removedRow(`removed-${i}`, row.text)
+            : lineRow(row.line, row.text, row.kind === 'added'),
         )
-      : current.lines.map((line, i) => lineRow(i + 1, line))
+      : current.lines.map((line, i) => lineRow(i + 1, line, false))
 
     return (
       <Box flexDirection="column">
