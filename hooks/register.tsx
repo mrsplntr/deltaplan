@@ -9,7 +9,7 @@ import { layoutMarkdown, stepUnit, unitRange, unitStart } from './markdown'
 
 const planPath = atom({ plugin: 'plan-abc', key: 'planPath' } as const, null)
 const history = atom({ plugin: 'plan-abc', key: 'history' } as const, [])
-const revisionPending = atom({ plugin: 'plan-abc', key: 'revisionPending' } as const, false)
+const sessionEnded = atom({ plugin: 'plan-abc', key: 'sessionEnded' } as const, true)
 const review = atom({ plugin: 'plan-abc', key: 'review' } as const, null)
 
 type Decision = { kind: 'continue' } | { kind: 'feedback'; text: string }
@@ -79,6 +79,13 @@ function saveNote($: EngineInterface, text: string): void {
   })
 }
 
+// Versions count per plan-mode session: the first plan after entering plan
+// mode is version 1, and every later plan in the same plan mode is the next
+// version. Three signals say plan mode ended; each calls this.
+async function endSession($: EngineInterface): Promise<void> {
+  if (!(await read($, sessionEnded))) await update($, sessionEnded, () => true)
+}
+
 async function sendFeedback($: EngineInterface, toolUseId: string): Promise<void> {
   const r = await read($, review)
   if (r === null || r.toolUseId !== toolUseId) return
@@ -97,17 +104,27 @@ export const register: Register = on => {
   })
 
   on('prompt.attachment', async ($, e, next) => {
-    const detail = (e as { detail?: { planFilePath?: string } }).detail
-    const isPlanRow = e.type === 'plan_mode' || e.type === 'plan_mode_reentry'
-    if (isPlanRow && e.agentId === undefined && detail?.planFilePath) {
-      const path = detail.planFilePath
-      if ((await read($, planPath)) !== path) await update($, planPath, () => path)
+    if (e.agentId === undefined) {
+      // Plan mode ended: Claude Code's one-time note on the next request.
+      if (e.type === 'plan_mode_exit') await endSession($)
+      const detail = (e as { detail?: { planFilePath?: string } }).detail
+      const isPlanRow = e.type === 'plan_mode' || e.type === 'plan_mode_reentry'
+      if (isPlanRow && detail?.planFilePath) {
+        const path = detail.planFilePath
+        if ((await read($, planPath)) !== path) await update($, planPath, () => path)
+      }
     }
     return next(e)
   })
 
+  // Plan mode ended: a message sent in any other mode.
+  on('classic.UserPromptSubmit', async ($, e, next) => {
+    if (e.agent_id === undefined && e.permission_mode !== undefined && e.permission_mode !== 'plan') await endSession($)
+    return next(e)
+  })
+
   // Hold the plan until the person decides. Send feedback answers with a deny
-  // (Claude revises); Continue hands the call to the engine's own approval
+  // and Claude revises; Continue hands the call to the engine's own approval
   // dialog, since a plugin's allow for ExitPlanMode is not honored.
   on('tool.call', { tool: 'ExitPlanMode' }, async ($, e, next) => {
     const path = await read($, planPath)
@@ -117,11 +134,11 @@ export const register: Register = on => {
     if ((await $.session.surfaces()).length === 0) return next(e)
 
     const text = await $.fs.read(path)
-    const isRevision = await read($, revisionPending)
+    const isNewSession = await read($, sessionEnded)
     const seen = await read($, history)
-    const all = isRevision ? (seen.at(-1) === text ? seen : [...seen, text]) : [text]
+    const all = isNewSession ? [text] : seen.at(-1) === text ? seen : [...seen, text]
     await update($, history, () => all)
-    if (isRevision) await update($, revisionPending, () => false)
+    if (isNewSession) await update($, sessionEnded, () => false)
 
     const before = all.length > 1 ? all[all.length - 2] : undefined
     const current: Review = {
@@ -149,17 +166,11 @@ export const register: Register = on => {
       }
     }
 
-    if (decision?.kind === 'feedback') {
-      await update($, revisionPending, () => true)
-      return { deny: decision.text }
-    }
+    if (decision?.kind === 'feedback') return { deny: decision.text }
 
     const result = await next(e)
-    // Refused in the engine's dialog ("Tell Claude what to change", "keep
-    // planning"): the plan that comes back next is a revision of this one.
-    if (!next.signal.aborted && (result.deny !== undefined || result.isError === true)) {
-      await update($, revisionPending, () => true)
-    }
+    // Plan mode ended: the plan was approved in the engine's dialog.
+    if (!next.signal.aborted && result.deny === undefined && result.isError !== true) await endSession($)
     return result
   }).catch(($, e, next) => next(e))
 

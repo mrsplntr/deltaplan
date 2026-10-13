@@ -14,10 +14,11 @@ declare module 'claude-code' {
   interface PluginState {
     'plan-abc': {
       planPath: string | null
-      // The versions of the plan under review, oldest first. A new plan
-      // request starts it over; a revision after Send feedback adds to it.
+      // The versions of the plan in this plan-mode session, oldest first.
       history: string[]
-      revisionPending: boolean
+      // True once plan mode has ended: the next plan starts a new session at
+      // version 1.
+      sessionEnded: boolean
       review: Review | null
     }
   }
