@@ -112,6 +112,9 @@ export const register: Register = on => {
   on('tool.call', { tool: 'ExitPlanMode' }, async ($, e, next) => {
     const path = await read($, planPath)
     if (e.agentId !== undefined || path === null) return next(e)
+    // Nobody to answer (no screen attached, as in an SDK host): don't hold
+    // the plan for buttons nobody can see; Claude Code handles it as usual.
+    if ((await $.session.surfaces()).length === 0) return next(e)
 
     const text = await $.fs.read(path)
     const isRevision = await read($, revisionPending)
