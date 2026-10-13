@@ -104,6 +104,14 @@ function splitRow(line: string): string[] {
   return cells
 }
 
+// The plan file's lines. The newline that ends the last line starts no line
+// of its own, as in an editor; a blank line before it still counts.
+export function splitLines(text: string): string[] {
+  const lines = text.split(/\r?\n/)
+  if (lines.length > 1 && lines.at(-1) === '') lines.pop()
+  return lines
+}
+
 export function spansWidth(spans: readonly Span[]): number {
   return spans.reduce((sum, span) => sum + span.text.length, 0)
 }

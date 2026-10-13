@@ -1,6 +1,13 @@
 import { expect, test } from 'claude-code/testing'
 
-import { blockKind, layoutMarkdown, parseInline, stepUnit, unitRange, unitStart } from '../hooks/markdown'
+import { blockKind, layoutMarkdown, parseInline, splitLines, stepUnit, unitRange, unitStart } from '../hooks/markdown'
+
+test('the newline that ends the file adds no line, but a blank line before it stays', () => {
+  expect(splitLines('# Plan\nline\n')).toEqual(['# Plan', 'line'])
+  expect(splitLines('# Plan\r\nline')).toEqual(['# Plan', 'line'])
+  expect(splitLines('line\n\n')).toEqual(['line', ''])
+  expect(splitLines('')).toEqual([''])
+})
 
 test('inline symbols become styles and disappear from the text', () => {
   expect(parseInline('Use **Redis** for the `cache`, *maybe*')).toEqual([

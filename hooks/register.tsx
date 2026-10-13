@@ -5,7 +5,7 @@ import type { Review } from '../types'
 import { describeCounts, diffLines } from './diff'
 import { buildFeedback, countFeedbackLines, FEEDBACK_HEADER, noteCount } from './feedback'
 import type { DisplayLine, Span } from './markdown'
-import { layoutMarkdown, stepUnit, unitRange, unitStart } from './markdown'
+import { layoutMarkdown, splitLines, stepUnit, unitRange, unitStart } from './markdown'
 
 const planPath = atom({ plugin: 'plan-abc', key: 'planPath' } as const, null)
 const history = atom({ plugin: 'plan-abc', key: 'history' } as const, [])
@@ -148,8 +148,8 @@ export const register: Register = on => {
       toolUseId: e.tool_use_id,
       path,
       version: all.length,
-      lines: text.split(/\r?\n/),
-      previous: before === undefined ? null : before.split(/\r?\n/),
+      lines: splitLines(text),
+      previous: before === undefined ? null : splitLines(before),
       notes: {},
       selected: null,
     }
