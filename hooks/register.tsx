@@ -1,11 +1,11 @@
 import { atom, read, update } from 'claude-code'
-import type { EngineInterface, Register, RenderChildren } from 'claude-code'
+import type { ButtonProps, ElementConstructor, EngineInterface, Register, RenderChildren, RenderElement } from 'claude-code'
 
 import type { Review } from '../types'
 import { describeCounts, diffLines } from './diff'
 import { buildFeedback, countFeedbackLines, FEEDBACK_HEADER, noteCount } from './feedback'
 import type { DisplayLine, Span } from './markdown'
-import { layoutMarkdown, splitLines, stepUnit, unitRange, unitStart } from './markdown'
+import { layoutMarkdown, spansWidth, splitLines, stepUnit, unitRange, unitStart } from './markdown'
 
 const planPath = atom({ plugin: 'plan-abc', key: 'planPath' } as const, null)
 const history = atom({ plugin: 'plan-abc', key: 'history' } as const, [])
@@ -100,6 +100,40 @@ function reportError($: EngineInterface, what: string, why: string | undefined):
 
 function errorText(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
+}
+
+// Continue and Send feedback, written once for every place that draws them:
+// the plan row (above and below the plan), the bar, and the drawing-error
+// line. `where` keeps two sets in one tree apart; the bar's alone (no
+// `where`) carry the hotkeys 1 and 2 and the plain keys its focus order names.
+function decisionButtons(
+  Button: ElementConstructor<ButtonProps>,
+  toolUseId: string,
+  count: number,
+  onFeedback: () => void,
+  where?: string,
+): RenderElement[] {
+  const isBar = where === undefined
+  const buttons = [
+    <Button
+      key={isBar ? 'continue' : `continue-${where}`}
+      {...(isBar ? { hotkey: '1' } : {})}
+      variant="primary"
+      onPress={() => {
+        decisions.set(toolUseId, { kind: 'continue' })
+      }}
+    >
+      Continue to approval
+    </Button>,
+  ]
+  if (count > 0) {
+    buttons.push(
+      <Button key={isBar ? 'feedback' : `feedback-${where}`} {...(isBar ? { hotkey: '2' } : {})} onPress={onFeedback}>
+        Send feedback ({count})
+      </Button>,
+    )
+  }
+  return buttons
 }
 
 async function sendFeedback($: EngineInterface, toolUseId: string): Promise<void> {
@@ -291,7 +325,7 @@ export const register: Register = on => {
         case 'table':
           return (widths ?? line.widths).flatMap((w, c) => {
             const cell = line.cells[c] ?? []
-            const pad = w - cell.reduce((sum, s) => sum + s.text.length, 0)
+            const pad = w - spansWidth(cell)
             return [
               ...(c > 0 ? [plain(' │ ', { dim: true })] : []),
               ...spans(cell, tint, inverse, line.isHeader),
@@ -301,31 +335,11 @@ export const register: Register = on => {
       }
     }
 
-    const controls = (where: string) => {
-      const items = [
-        <Button
-          key={`continue-${where}`}
-          variant="primary"
-          onPress={() => {
-            decisions.set(current.toolUseId, { kind: 'continue' })
-          }}
-        >
-          Continue to approval
-        </Button>,
-      ]
-      if (count > 0) {
-        items.push(
-          <Button key={`feedback-${where}`} onPress={() => sendFeedback($, current.toolUseId)}>
-            Send feedback ({count})
-          </Button>,
-        )
-      }
-      return (
-        <Box flexDirection="row" flexWrap="wrap" gap={1}>
-          {items}
-        </Box>
-      )
-    }
+    const controls = (where: string) => (
+      <Box flexDirection="row" flexWrap="wrap" gap={1}>
+        {decisionButtons(Button, current.toolUseId, count, () => sendFeedback($, current.toolUseId), where)}
+      </Box>
+    )
 
     // A line of the current version, always with its own number. A diagram or
     // table is selected as one unit; a comment shows under its last line.
@@ -407,19 +421,11 @@ export const register: Register = on => {
     // Continue, which ends the hold and opens the engine's dialog.
     if (e.props.tool !== 'ExitPlanMode' || next.error.kind === 're-entry') return next(e)
     const { Box, Button, Text } = $.ui.resolve(e)
-    const id = e.props.tool_use_id
     const reason = next.error.message ? ` (${next.error.message})` : ''
     return (
       <Box flexDirection="column">
         <Text color={ERROR}>Error: Plan ABC couldn't draw the plan{reason}. Continue still works.</Text>
-        <Button
-          variant="primary"
-          onPress={() => {
-            decisions.set(id, { kind: 'continue' })
-          }}
-        >
-          Continue to approval
-        </Button>
+        {decisionButtons(Button, e.props.tool_use_id, 0, () => {}, 'error')}
       </Box>
     )
   })
@@ -457,25 +463,7 @@ export const register: Register = on => {
     const where =
       unit === null ? 'Pick a line' : unit.end > unit.start ? `Comment on lines ${unit.start}-${unit.end}` : `Comment on line ${unit.start}`
 
-    const actions = [
-      <Button
-        key="continue"
-        hotkey="1"
-        variant="primary"
-        onPress={() => {
-          decisions.set(current.toolUseId, { kind: 'continue' })
-        }}
-      >
-        Continue to approval
-      </Button>,
-    ]
-    if (count > 0) {
-      actions.push(
-        <Button key="feedback" hotkey="2" onPress={() => sendFeedback($, current.toolUseId)}>
-          Send feedback ({count})
-        </Button>,
-      )
-    }
+    const actions = decisionButtons(Button, current.toolUseId, count, () => sendFeedback($, current.toolUseId))
 
     return (
       <Box flexDirection="column">
