@@ -30,6 +30,9 @@ const ADDED = 'success'
 const REMOVED = 'error'
 const COMMENT = 'inactive'
 const ERROR = 'error'
+// The spinner while a plan waits: the theme's warning color, readable on
+// light and dark backgrounds alike.
+const WAITING = 'warning'
 // Inline `code` and link text. Code blocks use the normal text color, as in
 // the approval dialog.
 const CODE = 'permission'
@@ -531,7 +534,7 @@ export const register: Register = on => {
   on('ui.render', { component: 'Spinner' }, async ($, e, next) => {
     if ((await read($, review)) === null) return next(e)
     const { Text } = $.ui.resolve(e)
-    return <Text color="yellow">◆ Plan ABC · waiting for your review</Text>
+    return <Text color={WAITING}>◆ Plan ABC · waiting for your review</Text>
   })
 
   on('ui.render', { component: 'PromptHint' }, async ($, e, next) => {
