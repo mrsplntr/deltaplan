@@ -32,21 +32,31 @@ const ERROR = 'error'
 const WAITING = 'warning'
 
 // A wait run as a host process: unlike $.clock.sleep it does not spend the
-// hook's 10 s budget. macOS and Linux always have `sleep`. Windows has it only
-// with Git installed, so there a `sleep` that fails to start switches to a
-// local ping (about one second). Windows always sets OS to Windows_NT.
-const SLEEP = ['sleep', '0.4']
-const PING = ['ping', '-n', '2', '127.0.0.1']
-let waitCommand: readonly string[] = SLEEP
-let isWindows: boolean | undefined
+// hook's 10 s budget, and no $ call waits for a press without one. macOS and
+// Linux always have `sleep`, found on PATH and never in the current folder.
+// Windows may look in the current folder first, so a project could hold its
+// own sleep.exe: there both waits run by full path, Git's sleep where Git
+// installs it, else the system's ping (about one second). Windows always sets
+// OS to Windows_NT.
+let waitCommand: readonly string[] | undefined
+let pingCommand: readonly string[] | undefined
 
 async function tick($: EngineInterface): Promise<void> {
-  isWindows ??= (await $.env.get('OS')) === 'Windows_NT'
+  if (waitCommand === undefined) {
+    if ((await $.env.get('OS')) === 'Windows_NT') {
+      const windows = (await $.env.get('SystemRoot')) ?? 'C:\\Windows'
+      const programs = (await $.env.get('ProgramFiles')) ?? 'C:\\Program Files'
+      pingCommand = [`${windows}\\System32\\PING.EXE`, '-n', '2', '127.0.0.1']
+      waitCommand = [`${programs}\\Git\\usr\\bin\\sleep.exe`, '0.4']
+    } else {
+      waitCommand = ['sleep', '0.4']
+    }
+  }
   try {
     await $.process.run(waitCommand, { timeoutMs: 5000 })
   } catch (error) {
-    if (!isWindows || waitCommand === PING) throw error
-    waitCommand = PING
+    if (pingCommand === undefined || waitCommand === pingCommand) throw error
+    waitCommand = pingCommand
   }
 }
 
