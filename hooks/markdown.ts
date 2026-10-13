@@ -38,12 +38,21 @@ export type DisplayLine =
 const DRAWING = /[─━│┃┌┐└┘├┤┬┴┼═║╔╗╚╝╠╣╦╩╬╭╮╯╰▲▼◀▶►◄△▽↑↓→←↔↕⇒⇐⇑⇓]/g
 
 const FENCE_OPEN = /^\s*(`{3,}|~{3,})\s*([^\s`]*)/
+const FENCE_CLOSE = /^\s*(`{3,}|~{3,})\s*$/
 const HEADING = /^(#{1,6})\s+(.*?)(?:\s+#+)?\s*$/
 const RULE = /^\s*([-*_])(?:\s*\1){2,}\s*$/
 const BULLET = /^(\s*)([-*+])\s+(.*)$/
 const NUMBERED = /^(\s*)(\d+[.)])\s+(.*)$/
 const QUOTE = /^(\s*)>\s?(.*)$/
 const TABLE_RULE = /^\s*\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)*\|?\s*$/
+
+// A line that closes a fence opened with `mark`: the same character, at least
+// as many of them, and nothing after. So "```bash" inside a "````" block, or
+// inside a "```" block, is code, as in the approval dialog.
+function closesFence(line: string, mark: string): boolean {
+  const close = FENCE_CLOSE.exec(line)
+  return close !== null && close[1]![0] === mark[0] && close[1]!.length >= mark.length
+}
 
 function drawingCount(line: string): number {
   return (line.match(DRAWING) ?? []).length
@@ -220,7 +229,7 @@ export function layoutMarkdown(lines: readonly string[]): DisplayLine[] {
       const mark = fence[1]!
       const lang = fence[2]!.toLowerCase()
       let end = i + 1
-      while (end < lines.length && !lines[end]!.trim().startsWith(mark[0]!.repeat(mark.length))) end++
+      while (end < lines.length && !closesFence(lines[end]!, mark)) end++
       const last = Math.min(end, lines.length - 1)
       const inner = lines.slice(i + 1, end)
       const isDiagram =

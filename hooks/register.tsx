@@ -29,7 +29,8 @@ const BAR_ORDER = ['up', 'down', 'comment', 'continue', 'feedback']
 const ADDED = 'success'
 const REMOVED = 'error'
 const COMMENT = 'inactive'
-// Inline `code` and code blocks, and link text.
+// Inline `code` and link text. Code blocks use the normal text color, as in
+// the approval dialog.
 const CODE = 'permission'
 const LINK = 'suggestion'
 
@@ -252,7 +253,7 @@ export const register: Register = on => {
         case 'fence':
           return [plain(line.text, { dim: true })]
         case 'code':
-          return [plain(line.text, { color: CODE })]
+          return [plain(line.text)]
         case 'diagram':
           return [plain(line.text, { truncate: true })]
         case 'tableRule':

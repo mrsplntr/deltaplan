@@ -37,6 +37,15 @@ test('a code block keeps one display line per file line, spacing intact', () => 
   expect(layout[2]).toEqual({ kind: 'code', text: '    return **y**' })
 })
 
+test('a fence inside a longer fence is code, and only a bare fence closes a block', () => {
+  const nested = layoutMarkdown(['Intro', '````markdown', '# Readme', '```bash', 'npm i', '```', '````', 'After'])
+  expect(nested.map(l => l.kind)).toEqual(['text', 'fence', 'code', 'code', 'code', 'code', 'fence', 'text'])
+  expect(nested[3]).toEqual({ kind: 'code', text: '```bash' })
+
+  const sameLength = layoutMarkdown(['```md', 'Example:', '```js', 'code()', '```', 'After'])
+  expect(sameLength.map(l => l.kind)).toEqual(['fence', 'code', 'code', 'code', 'fence', 'text'])
+})
+
 test('a table gives each row its own line, with shared column widths', () => {
   const layout = layoutMarkdown(['| Name | Role |', '|---|---|', '| **Ann** | dev |', '| Bo | product owner |'])
   expect(layout.map(l => l.kind)).toEqual(['table', 'tableRule', 'table', 'table'])
