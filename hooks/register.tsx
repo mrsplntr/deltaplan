@@ -71,8 +71,6 @@ async function move($: EngineInterface, delta: number): Promise<void> {
   if (r === null) return
   const n = stepUnit(layoutMarkdown(r.lines), r.selected, delta)
   await update($, review, cur => (cur === null ? cur : { ...cur, selected: n }))
-  // Bring the line into view in the transcript; harmless when refused.
-  $.ui.scroll({ to: { key: `line-${n}` }, block: 'center' }).catch(() => {})
 }
 
 function saveNote($: EngineInterface, text: string): void {
