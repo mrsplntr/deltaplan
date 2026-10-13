@@ -38,20 +38,22 @@ const LINK = 'suggestion'
 const GUTTER = 3
 
 // A wait run as a host process: unlike $.clock.sleep it does not spend the
-// hook's 10 s budget. `sleep` is missing on Windows, so fall back to a local
-// ping (about one second) once it fails to start.
-let isWindows = false
+// hook's 10 s budget. macOS and Linux always have `sleep`. Windows has it only
+// with Git installed, so there a `sleep` that fails to start switches to a
+// local ping (about one second). Windows always sets OS to Windows_NT.
+const SLEEP = ['sleep', '0.4']
+const PING = ['ping', '-n', '2', '127.0.0.1']
+let waitCommand: readonly string[] = SLEEP
+let isWindows: boolean | undefined
 
 async function tick($: EngineInterface): Promise<void> {
-  if (!isWindows) {
-    try {
-      await $.process.run(['sleep', '0.4'], { timeoutMs: 5000 })
-      return
-    } catch {
-      isWindows = true
-    }
+  isWindows ??= (await $.env.get('OS')) === 'Windows_NT'
+  try {
+    await $.process.run(waitCommand, { timeoutMs: 5000 })
+  } catch (error) {
+    if (!isWindows || waitCommand === PING) throw error
+    waitCommand = PING
   }
-  await $.process.run(['ping', '-n', '2', '127.0.0.1'], { timeoutMs: 5000 })
 }
 
 // What the buttons do. Each runs from a press, so its reads are current.
