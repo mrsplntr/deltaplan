@@ -3,10 +3,10 @@
 
 export type DiffRow =
   | { kind: 'same'; line: number; text: string }
-  | { kind: 'added'; line: number; text: string; isChange: boolean }
+  | { kind: 'added'; line: number; text: string }
   // `line` is where the removed text stood in the new version: the number of
   // the new line that now follows it. `from` is its line in the old version.
-  | { kind: 'removed'; line: number; from: number; text: string; isChange: boolean }
+  | { kind: 'removed'; line: number; from: number; text: string }
 
 export type DiffCounts = { changed: number; added: number; removed: number }
 
@@ -76,8 +76,8 @@ export function diffLines(before: readonly string[], after: readonly string[]): 
     counts.changed += pairs
     counts.removed += removed.length - pairs
     counts.added += added.length - pairs
-    removed.forEach(({ text, from }, r) => rows.push({ kind: 'removed', line: next + r, from, text, isChange: r < pairs }))
-    added.forEach((text, a) => rows.push({ kind: 'added', line: next + a, text, isChange: a < pairs }))
+    removed.forEach(({ text, from }, r) => rows.push({ kind: 'removed', line: next + r, from, text }))
+    added.forEach((text, a) => rows.push({ kind: 'added', line: next + a, text }))
     next += added.length
   }
   return { rows, counts }

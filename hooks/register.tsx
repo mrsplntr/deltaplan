@@ -164,7 +164,6 @@ export const register: Register = on => {
       const before = all.length > 1 ? all[all.length - 2] : undefined
       const current: Review = {
         toolUseId: e.tool_use_id,
-        path,
         version: all.length,
         lines: splitLines(text),
         previous: before === undefined ? null : splitLines(before),

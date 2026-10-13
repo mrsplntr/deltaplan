@@ -18,7 +18,7 @@ export type Block = { start: number; end: number }
 
 export type DisplayLine =
   | { kind: 'blank' }
-  | { kind: 'heading'; level: number; spans: Span[] }
+  | { kind: 'heading'; spans: Span[] }
   | { kind: 'text'; spans: Span[] }
   // A list item or quote: leading indentation, the marker ("- " and "1. " as
   // written, "│ " for a quote), then the item.
@@ -295,7 +295,7 @@ function layoutLine(line: string): DisplayLine {
   if (line.trim() === '') return { kind: 'blank' }
 
   const heading = HEADING.exec(line)
-  if (heading) return { kind: 'heading', level: heading[1]!.length, spans: parseInline(heading[2]!) }
+  if (heading) return { kind: 'heading', spans: parseInline(heading[2]!) }
 
   if (RULE.test(line)) return { kind: 'rule' }
 

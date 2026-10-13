@@ -28,7 +28,7 @@ test('inline symbols become styles and disappear from the text', () => {
 
 test('headings, list markers as written, numbered items, tasks and quotes', () => {
   const layout = layoutMarkdown(['## Step **one**', '- item', '  * nested', '3. third', '- [x] done', '> note', '', '---'])
-  expect(layout[0]).toEqual({ kind: 'heading', level: 2, spans: [{ text: 'Step ' }, { text: 'one', bold: true }] })
+  expect(layout[0]).toEqual({ kind: 'heading', spans: [{ text: 'Step ' }, { text: 'one', bold: true }] })
   expect(layout[1]).toEqual({ kind: 'item', indent: '', marker: '- ', isQuote: false, spans: [{ text: 'item' }] })
   expect(layout[2]).toEqual({ kind: 'item', indent: '  ', marker: '* ', isQuote: false, spans: [{ text: 'nested' }] })
   expect(layout[3]).toEqual({ kind: 'item', indent: '', marker: '3. ', isQuote: false, spans: [{ text: 'third' }] })

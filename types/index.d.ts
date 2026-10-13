@@ -1,6 +1,5 @@
 export type Review = {
   toolUseId: string
-  path: string
   version: number
   lines: string[]
   // The version before this one, for the diff; null for version 1.

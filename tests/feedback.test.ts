@@ -5,7 +5,6 @@ import type { Review } from '../types'
 
 const review: Review = {
   toolUseId: 'toolu_1',
-  path: 'plan.md',
   version: 1,
   lines: ['# Plan', '', '1. Set up', '4. Use Redis for the cache', 'x'.repeat(200)],
   previous: null,

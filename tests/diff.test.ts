@@ -16,8 +16,8 @@ test('a replaced line is one change, shown old (red) then new (green)', () => {
   expect(counts).toEqual({ changed: 1, added: 0, removed: 0 })
   expect(rows).toEqual([
     { kind: 'same', line: 1, text: '# Plan' },
-    { kind: 'removed', line: 2, from: 2, text: 'Use Redis for the cache', isChange: true },
-    { kind: 'added', line: 2, text: 'Use PostgreSQL for the cache', isChange: true },
+    { kind: 'removed', line: 2, from: 2, text: 'Use Redis for the cache' },
+    { kind: 'added', line: 2, text: 'Use PostgreSQL for the cache' },
     { kind: 'same', line: 3, text: 'Ship' },
   ])
 })
@@ -27,10 +27,10 @@ test('pure additions and removals are counted apart from changes', () => {
   expect(counts).toEqual({ changed: 0, added: 1, removed: 1 })
   expect(rows).toEqual([
     { kind: 'same', line: 1, text: 'a' },
-    { kind: 'added', line: 2, text: 'new', isChange: false },
+    { kind: 'added', line: 2, text: 'new' },
     { kind: 'same', line: 3, text: 'b' },
     { kind: 'same', line: 4, text: 'c' },
-    { kind: 'removed', line: 5, from: 4, text: 'old', isChange: false },
+    { kind: 'removed', line: 5, from: 4, text: 'old' },
   ])
   expect(describeCounts(counts)).toBe('0 changed · 1 added · 1 removed')
 })
