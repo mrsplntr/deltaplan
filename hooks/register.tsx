@@ -29,6 +29,7 @@ const BAR_ORDER = ['up', 'down', 'comment', 'continue', 'feedback']
 const ADDED = 'success'
 const REMOVED = 'error'
 const COMMENT = 'inactive'
+const ERROR = 'error'
 // Inline `code` and link text. Code blocks use the normal text color, as in
 // the approval dialog.
 const CODE = 'permission'
@@ -89,6 +90,17 @@ async function endSession($: EngineInterface): Promise<void> {
   if (!(await read($, sessionEnded))) await update($, sessionEnded, () => true)
 }
 
+// A failure the person should hear about: what broke, Claude Code's own words
+// for why, and what happens instead. Up long enough to read.
+function reportError($: EngineInterface, what: string, why: string | undefined): void {
+  const reason = why ? ` (${why})` : ''
+  $.ui.toast(`Error: ${what}${reason}. Showing the normal plan dialog instead.`, { timeoutMs: 15000 })
+}
+
+function errorText(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
+}
+
 async function sendFeedback($: EngineInterface, toolUseId: string): Promise<void> {
   const r = await read($, review)
   if (r === null || r.toolUseId !== toolUseId) return
@@ -136,37 +148,46 @@ export const register: Register = on => {
     // the plan for buttons nobody can see; Claude Code handles it as usual.
     if ((await $.session.surfaces()).length === 0) return next(e)
 
-    const text = await $.fs.read(path)
-    const isNewSession = await read($, sessionEnded)
-    const seen = await read($, history)
-    const all = isNewSession ? [text] : seen.at(-1) === text ? seen : [...seen, text]
-    await update($, history, () => all)
-    if (isNewSession) await update($, sessionEnded, () => false)
-
-    const before = all.length > 1 ? all[all.length - 2] : undefined
-    const current: Review = {
-      toolUseId: e.tool_use_id,
-      path,
-      version: all.length,
-      lines: splitLines(text),
-      previous: before === undefined ? null : splitLines(before),
-      notes: {},
-      selected: null,
-    }
-    await update($, review, () => current)
-
+    // Each step names itself, so a failure says what broke.
+    let step = `couldn't read the plan file ${path}`
     let decision: Decision | undefined
     try {
-      while ((decision = decisions.get(current.toolUseId)) === undefined && !next.signal.aborted) {
-        await tick($)
+      const text = await $.fs.read(path)
+      step = "couldn't save the review"
+      const isNewSession = await read($, sessionEnded)
+      const seen = await read($, history)
+      const all = isNewSession ? [text] : seen.at(-1) === text ? seen : [...seen, text]
+      await update($, history, () => all)
+      if (isNewSession) await update($, sessionEnded, () => false)
+
+      const before = all.length > 1 ? all[all.length - 2] : undefined
+      const current: Review = {
+        toolUseId: e.tool_use_id,
+        path,
+        version: all.length,
+        lines: splitLines(text),
+        previous: before === undefined ? null : splitLines(before),
+        notes: {},
+        selected: null,
       }
-    } finally {
-      decisions.delete(current.toolUseId)
+      await update($, review, () => current)
+
+      step = 'the wait command failed'
       try {
-        await update($, review, () => null)
-      } catch {
-        // The dispatch was abandoned (Esc); session.start clears it later.
+        while ((decision = decisions.get(current.toolUseId)) === undefined && !next.signal.aborted) {
+          await tick($)
+        }
+      } finally {
+        decisions.delete(current.toolUseId)
+        try {
+          await update($, review, () => null)
+        } catch {
+          // The dispatch was abandoned (Esc); session.start clears it later.
+        }
       }
+    } catch (error) {
+      if (!next.signal.aborted) reportError($, step, errorText(error))
+      return next(e)
     }
 
     if (decision?.kind === 'feedback') return { deny: decision.text }
@@ -175,7 +196,14 @@ export const register: Register = on => {
     // Plan mode ended: the plan was approved in the engine's dialog.
     if (!next.signal.aborted && result.deny === undefined && result.isError !== true) await endSession($)
     return result
-  }).catch(($, e, next) => next(e))
+  }).catch(($, e, next) => {
+    // Anything else, the hook's time limit included. Not once the plan has
+    // gone on to the engine's dialog, nor after Esc.
+    if (next.error.kind !== 're-entry' && !next.called && !next.signal.aborted) {
+      reportError($, 'Plan ABC failed', next.error.message)
+    }
+    return next(e)
+  })
 
   // The plan at full height in its own transcript row, formatted from its
   // Markdown and colored against the previous version. Each file line is one
@@ -372,6 +400,26 @@ export const register: Register = on => {
           {plan}
         </Box>
         {controls('bottom')}
+      </Box>
+    )
+  }).catch(($, e, next) => {
+    // Drawing failed: say so in red where the plan would be, and keep
+    // Continue, which ends the hold and opens the engine's dialog.
+    if (e.props.tool !== 'ExitPlanMode' || next.error.kind === 're-entry') return next(e)
+    const { Box, Button, Text } = $.ui.resolve(e)
+    const id = e.props.tool_use_id
+    const reason = next.error.message ? ` (${next.error.message})` : ''
+    return (
+      <Box flexDirection="column">
+        <Text color={ERROR}>Error: Plan ABC couldn't draw the plan{reason}. Continue still works.</Text>
+        <Button
+          variant="primary"
+          onPress={() => {
+            decisions.set(id, { kind: 'continue' })
+          }}
+        >
+          Continue to approval
+        </Button>
       </Box>
     )
   })
