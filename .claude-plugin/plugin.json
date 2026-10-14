@@ -8,6 +8,7 @@
     "url": "https://github.com/mrsplntr"
   },
   "repository": "https://github.com/mrsplntr/deltaplan",
+  "supportUrl": "https://github.com/mrsplntr/deltaplan/issues",
   "license": "MIT",
   "keywords": [
     "plan-mode",

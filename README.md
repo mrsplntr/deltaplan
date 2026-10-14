@@ -41,12 +41,38 @@ If the file already has an `env` section, add the line inside it.
 2. Click a line and type a comment in the DeltaPlan comment field. Enter saves it.
 3. Press **Send feedback** to get a revised plan, or **Continue to approval** when it's ready.
 
+## Examples
+
+- **Point at the exact line.** Instead of copying lines into a message and explaining where they are, click a line and type your comment. Claude gets each comment with the line it's about.
+- **Check that your fixes landed.** After Send feedback, version 2 shows a diff. Check only the red and green lines, instead of rereading the whole plan to find what changed.
+- **Catch changes you didn't ask for.** If Claude quietly rewrote a step you were happy with, it shows up in the diff too.
+
+## Troubleshooting
+
+- **The normal plan dialog shows, without DeltaPlan:** run `/plugin` and check for `mods active · deltaplan`. Mods need Claude Code 2.1.287 or later. DeltaPlan is tested in the terminal.
+- **A red message starting with "Error:":** something failed, for example DeltaPlan couldn't read the plan file. The message says what. Claude Code's normal plan dialog opens instead, so you can still approve or refuse the plan.
+- **On Windows without Git, buttons take up to a second to respond:** DeltaPlan then waits with `ping` instead of Git's `sleep`.
+
+## Support
+
+Report problems at https://github.com/mrsplntr/deltaplan/issues.
+
 ## What it runs
 
 A mod runs with your permissions, so here is everything DeltaPlan does outside Claude Code:
 
-- Reads the plan file. Writes no files and sends nothing over the network.
-- Runs `sleep` (on Windows, `sleep.exe` or `PING.EXE`) as a timer while it waits for your choice, since a mod has no other way to wait that long.
+- **Sends nothing.** No network calls. Your comments reach Claude only when you press Send feedback, as the normal plan-refusal message.
+- **Reads one file:** the plan file Claude writes in plan mode. It writes no files; plan versions stay in memory.
+- **Runs a wait timer.** A mod has no other way to wait for a button press, so while a plan waits it runs, again and again, one of these. Nothing from the plan or your comments is passed to them.
+  - macOS and Linux: `sleep 0.4`
+  - Windows: `%ProgramFiles%\Git\usr\bin\sleep.exe 0.4`, or `%SystemRoot%\System32\PING.EXE -n 2 127.0.0.1` if that fails
+
+Its hooks:
+
+- Holds Claude's plan (`ExitPlanMode`) until you choose: Send feedback refuses it with your comments; Continue passes it to Claude Code's normal approval dialog. It never approves a plan.
+- Watches the messages you send (`UserPromptSubmit`), reading only the permission mode, to tell when plan mode ends. It changes nothing.
+- Draws the plan, the comment bar and the spinner text.
+- Makes ↑/↓ in the comment field move between plan lines (`ui.focus`).
 
 ## Requirements
 
