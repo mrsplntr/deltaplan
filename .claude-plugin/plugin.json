@@ -1,11 +1,13 @@
 {
   "name": "deltaplan",
+  "displayName": "DeltaPlan",
   "version": "0.1.0",
   "description": "Comment on Claude's plan line by line. See what changed as a diff.",
   "author": {
     "name": "mrsplntr",
     "url": "https://github.com/mrsplntr"
   },
+  "repository": "https://github.com/mrsplntr/deltaplan",
   "license": "MIT",
   "keywords": [
     "plan-mode",
@@ -13,5 +15,6 @@
     "comments",
     "diff"
   ],
+  "icon": "./assets/icon-dark.svg",
   "types": "./types/index.d.ts"
 }
