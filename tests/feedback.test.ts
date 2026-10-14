@@ -16,7 +16,7 @@ test('feedback lists notes in line order, quoting each line', () => {
   expect(noteCount(review)).toBe(2)
   expect(buildFeedback(review)).toBe(
     [
-      'The user reviewed the plan in Plan ABC. Revise the plan and submit it again.',
+      'The user reviewed the plan in DeltaPlan. Revise the plan and submit it again.',
       'Line 4 "4. Use Redis for the cache": comment — Why Redis and not Postgres?',
       `Line 5 "${'x'.repeat(119)}…": comment — Too long?`,
     ].join('\n'),
@@ -32,7 +32,7 @@ test('feedback quotes the Markdown as written, and a diagram or table by its ran
   }
   expect(buildFeedback(plan)).toBe(
     [
-      'The user reviewed the plan in Plan ABC. Revise the plan and submit it again.',
+      'The user reviewed the plan in DeltaPlan. Revise the plan and submit it again.',
       'Line 1 "## Use **Redis**": comment — Why bold?',
       'Lines 2-5 (diagram) "```mermaid": comment — Add a cache box',
       'Lines 6-8 (table) "| A | B |": comment — Add a column',

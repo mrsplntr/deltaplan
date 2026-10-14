@@ -1,6 +1,17 @@
 {
-  "name": "plan-abc",
+  "name": "deltaplan",
   "version": "0.1.0",
-  "description": "Review, comment on and diff Claude's plan before approving it",
+  "description": "Comment on Claude's plan line by line. See what changed as a diff.",
+  "author": {
+    "name": "mrsplntr",
+    "url": "https://github.com/mrsplntr"
+  },
+  "license": "MIT",
+  "keywords": [
+    "plan-mode",
+    "review",
+    "comments",
+    "diff"
+  ],
   "types": "./types/index.d.ts"
 }

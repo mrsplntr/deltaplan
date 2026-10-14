@@ -8,10 +8,10 @@ import type { Actions } from './draw'
 import { decisionButtons, drawPlan } from './draw'
 import { layoutMarkdown, splitLines, stepUnit, unitRange, unitStart } from './markdown'
 
-const planPath = atom({ plugin: 'plan-abc', key: 'planPath' } as const, null)
-const history = atom({ plugin: 'plan-abc', key: 'history' } as const, [])
-const sessionEnded = atom({ plugin: 'plan-abc', key: 'sessionEnded' } as const, true)
-const review = atom({ plugin: 'plan-abc', key: 'review' } as const, null)
+const planPath = atom({ plugin: 'deltaplan', key: 'planPath' } as const, null)
+const history = atom({ plugin: 'deltaplan', key: 'history' } as const, [])
+const sessionEnded = atom({ plugin: 'deltaplan', key: 'sessionEnded' } as const, true)
+const review = atom({ plugin: 'deltaplan', key: 'review' } as const, null)
 
 type Decision = { kind: 'continue' } | { kind: 'feedback'; text: string }
 
@@ -117,7 +117,7 @@ async function sendFeedback($: EngineInterface, toolUseId: string): Promise<void
   const r = await read($, review)
   if (r === null || r.toolUseId !== toolUseId) return
   if (noteCount(r) === 0) {
-    $.ui.toast('Plan ABC: add a comment first')
+    $.ui.toast('DeltaPlan: add a comment first')
     return
   }
   decisions.set(toolUseId, { kind: 'feedback', text: buildFeedback(r) })
@@ -211,7 +211,7 @@ export const register: Register = on => {
     // Anything else, the hook's time limit included. Not once the plan has
     // gone on to the engine's dialog, nor after Esc.
     if (next.error.kind !== 're-entry' && !next.called && !next.signal.aborted) {
-      reportError($, 'Plan ABC failed', next.error.message)
+      reportError($, 'DeltaPlan failed', next.error.message)
     }
     return next(e)
   })
@@ -231,7 +231,7 @@ export const register: Register = on => {
     const reason = next.error.message ? ` (${next.error.message})` : ''
     return (
       <Box flexDirection="column">
-        <Text color={ERROR}>Error: Plan ABC couldn't draw the plan{reason}. Continue still works.</Text>
+        <Text color={ERROR}>Error: DeltaPlan couldn't draw the plan{reason}. Continue still works.</Text>
         {decisionButtons(Button, 0, actionsFor($, e.props.tool_use_id), 'error')}
       </Box>
     )
@@ -247,7 +247,7 @@ export const register: Register = on => {
     const { Text } = $.ui.resolve(e)
     return (
       <Text color="suggestion">
-        Plan ABC · feedback sent · {n} comment{n === 1 ? '' : 's'}
+        DeltaPlan · feedback sent · {n} comment{n === 1 ? '' : 's'}
       </Text>
     )
   })
@@ -275,7 +275,7 @@ export const register: Register = on => {
     return (
       <Box flexDirection="column">
         <Text>
-          <Text bold>Plan ABC</Text> · version {current.version}
+          <Text bold>DeltaPlan</Text> · version {current.version}
           {diff ? ` · ${describeCounts(diff.counts)}` : ''} · {count} comment{count === 1 ? '' : 's'}
         </Text>
         <Box flexDirection="row" gap={1}>
@@ -292,7 +292,7 @@ export const register: Register = on => {
             submitLabel="save"
             autoFocus
             onSubmit={value => {
-              if (n === null) $.ui.toast('Plan ABC: pick a line first (↑ ↓ or click it)')
+              if (n === null) $.ui.toast('DeltaPlan: pick a line first (↑ ↓ or click it)')
               else saveNote($, value)
             }}
           />
@@ -311,7 +311,7 @@ export const register: Register = on => {
   on('ui.focus', { component: 'AbovePrompt' }, async ($, e, next) => {
     const from = BAR_ORDER.indexOf('comment')
     const to = e.element === undefined ? -1 : BAR_ORDER.indexOf(e.element)
-    const isStepOff = e.origin.kind === 'person' && ringOn === 'comment' && e.plugin === 'plan-abc' && to >= 0
+    const isStepOff = e.origin.kind === 'person' && ringOn === 'comment' && e.plugin === 'deltaplan' && to >= 0
     if (isStepOff && to !== from) {
       await move($, to < from ? -1 : 1)
       const kept = await next({ ...e, element: 'comment' })
@@ -326,13 +326,13 @@ export const register: Register = on => {
   on('ui.render', { component: 'Spinner' }, async ($, e, next) => {
     if ((await read($, review)) === null) return next(e)
     const { Text } = $.ui.resolve(e)
-    return <Text color={WAITING}>◆ Plan ABC · waiting for your review</Text>
+    return <Text color={WAITING}>◆ DeltaPlan · waiting for your review</Text>
   })
 
   on('ui.render', { component: 'PromptHint' }, async ($, e, next) => {
     const current = await read($, review)
     if (current === null) return next(e)
-    const tail = noteCount(current) > 0 ? ' · Plan ABC: 1 continue · 2 send feedback' : ' · Plan ABC: 1 continue'
+    const tail = noteCount(current) > 0 ? ' · DeltaPlan: 1 continue · 2 send feedback' : ' · DeltaPlan: 1 continue'
     return next({ ...e, props: { ...e.props, tail } })
   })
 }

@@ -3,7 +3,7 @@ import { blockKind, layoutMarkdown, unitRange } from './markdown'
 
 const QUOTE_MAX = 120
 
-export const FEEDBACK_HEADER = 'The user reviewed the plan in Plan ABC. Revise the plan and submit it again.'
+export const FEEDBACK_HEADER = 'The user reviewed the plan in DeltaPlan. Revise the plan and submit it again.'
 
 function quote(line: string): string {
   const text = line.trim()

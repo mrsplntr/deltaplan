@@ -11,7 +11,7 @@ export type Review = {
 
 declare module 'claude-code' {
   interface PluginState {
-    'plan-abc': {
+    'deltaplan': {
       planPath: string | null
       // The versions of the plan in this plan-mode session, oldest first.
       history: string[]

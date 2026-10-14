@@ -229,7 +229,7 @@ export function drawPlan(elements: Elements, current: Review, actions: Actions):
   return (
     <Box flexDirection="column">
       <Text bold>
-        Plan ABC · version {current.version}
+        DeltaPlan · version {current.version}
         {diff ? ` · ${describeCounts(diff.counts)}` : ''}
       </Text>
       {controls('top')}

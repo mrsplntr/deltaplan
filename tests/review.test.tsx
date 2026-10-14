@@ -61,7 +61,7 @@ async function submitPlan($: Engine, w: ReturnType<typeof world>, text: string) 
   const isHeld = w.held()
   const call = $.tool.call({ tool: 'ExitPlanMode' })
   await isHeld
-  const bar = await $.ui.mount({ plugin: 'plan-abc', surface: 'terminal', ...BAR })
+  const bar = await $.ui.mount({ plugin: 'deltaplan', surface: 'terminal', ...BAR })
   return { call, bar }
 }
 
@@ -109,7 +109,7 @@ test('Send feedback refuses the plan with the comments, quoting each line', asyn
   expect(w.seen.approvals).toBe(0)
   expect(result.deny).toBe(
     [
-      'The user reviewed the plan in Plan ABC. Revise the plan and submit it again.',
+      'The user reviewed the plan in DeltaPlan. Revise the plan and submit it again.',
       'Line 2 "Use Redis": comment — Why not Postgres?',
     ].join('\n'),
   )
