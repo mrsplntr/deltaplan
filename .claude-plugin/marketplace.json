@@ -1,0 +1,14 @@
+{
+  "name": "mrsplntr",
+  "description": "Claude Code mods by mrsplntr",
+  "owner": {
+    "name": "mrsplntr",
+    "url": "https://github.com/mrsplntr"
+  },
+  "plugins": [
+    {
+      "name": "deltaplan",
+      "source": "./"
+    }
+  ]
+}

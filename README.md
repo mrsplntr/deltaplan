@@ -11,7 +11,31 @@ DeltaPlan fixes both:
 - **You stay in control.** DeltaPlan never approves a plan. Continue opens Claude Code's normal approval dialog.
 - **Local only.** No browser, no network, no extra model calls.
 
+## Examples
+
+- **Point at the exact line.** Instead of copying lines into a message and explaining where they are, click a line and type your comment. Claude gets each comment with the line it's about.
+- **Check that your fixes landed.** After Send feedback, version 2 shows a diff. Check only the red and green lines, instead of rereading the whole plan to find what changed.
+- **Catch changes you didn't ask for.** If Claude quietly rewrote a step you were happy with, it shows up in the diff too.
+
 ## Install
+
+Pick one way only:
+
+- **Marketplace** (below): one command. Updates when you ask, or by itself once you turn on auto-update.
+- **Manual** (below): clone and load the folder. Update with `git pull`.
+- **Anthropic's directory** (coming soon): the only way that updates by itself, with nothing to turn on.
+
+### From the marketplace
+
+In Claude Code (2.1.275 or later), run:
+
+```
+/plugin install deltaplan --marketplace mrsplntr/deltaplan
+```
+
+To get new versions automatically, run `/plugin`, open **Marketplaces**, select `mrsplntr` and choose **Enable auto-update**. Otherwise, update with `claude plugin update deltaplan@mrsplntr`.
+
+### Manually
 
 ```
 git clone https://github.com/mrsplntr/deltaplan
@@ -40,12 +64,6 @@ If the file already has an `env` section, add the line inside it.
 1. Ask for a plan in plan mode (Shift+Tab).
 2. Click a line and type a comment in the DeltaPlan comment field. Enter saves it.
 3. Press **Send feedback** to get a revised plan, or **Continue to approval** when it's ready.
-
-## Examples
-
-- **Point at the exact line.** Instead of copying lines into a message and explaining where they are, click a line and type your comment. Claude gets each comment with the line it's about.
-- **Check that your fixes landed.** After Send feedback, version 2 shows a diff. Check only the red and green lines, instead of rereading the whole plan to find what changed.
-- **Catch changes you didn't ask for.** If Claude quietly rewrote a step you were happy with, it shows up in the diff too.
 
 ## Troubleshooting
 
