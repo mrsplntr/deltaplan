@@ -222,7 +222,7 @@ export const register: Register = on => {
     const current = await read($, review)
     if (current?.toolUseId !== e.props.tool_use_id) return next(e)
 
-    return drawPlan($.ui.resolve(e), current, actionsFor($, current.toolUseId))
+    return drawPlan($.ui.resolve(e), current, actionsFor($, current.toolUseId), e.surface)
   }).catch(($, e, next) => {
     // Drawing failed: say so in red where the plan would be, and keep
     // Continue, which ends the hold and opens the engine's dialog.

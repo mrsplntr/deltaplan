@@ -1,12 +1,21 @@
 // The plan row's drawing: the plan at full height, formatted from its
 // Markdown and colored against the previous version. Each file line is one
-// row (line number | diff gutter | text) and a plain button: a click selects
-// it for a comment in the bar above the prompt. A diagram or table is one unit.
+// row (line number | diff gutter | text); a click on its number, or in the
+// terminal anywhere on it, selects it for a comment in the bar above the
+// prompt. A diagram or table is one unit.
 //
 // Pure: it takes the surface's elements and what the buttons do, and never
 // sees $, which may not cross into an imported file.
 
-import type { BoxProps, ButtonProps, ElementConstructor, RenderChildren, RenderElement, TextProps } from 'claude-code'
+import type {
+  BoxProps,
+  ButtonProps,
+  ElementConstructor,
+  RenderChildren,
+  RenderElement,
+  RenderSurface,
+  TextProps,
+} from 'claude-code'
 
 import type { Review } from '../types'
 import { describeCounts, diffLines } from './diff'
@@ -70,8 +79,12 @@ export function decisionButtons(
   return buttons
 }
 
-export function drawPlan(elements: Elements, current: Review, actions: Actions): RenderElement {
+export function drawPlan(elements: Elements, current: Review, actions: Actions, surface: RenderSurface): RenderElement {
   const { Box, Button, Text } = elements
+  // The terminal draws a plain Button as its children, so the whole line can
+  // be one. A desktop draws a native button, which keeps one line and drops
+  // the text's colors: there the text is plain Text and the number selects.
+  const isLinePressable = surface === 'terminal'
   // Wide enough for the old numbers too, which removed lines show.
   const width = String(Math.max(current.lines.length, current.previous?.length ?? 0)).length
   const count = noteCount(current)
@@ -83,10 +96,24 @@ export function drawPlan(elements: Elements, current: Review, actions: Actions):
   // One row of the plan as columns, like a CSS grid: the line number, a
   // fixed 3-wide gutter for the diff symbol, then the text, which wraps
   // inside its own column so continuation lines stay under the text.
-  const columns = (key: string, n: number | null, symbol: string, symbolColor: string | undefined, body: RenderChildren) => (
+  // `onNumber` makes the number a button.
+  const columns = (
+    key: string,
+    n: number | null,
+    symbol: string,
+    symbolColor: string | undefined,
+    body: RenderChildren,
+    onNumber?: () => void,
+  ) => (
     <Box key={key} flexDirection="row">
       <Box width={width} flexShrink={0} justifyContent="flex-end">
-        <Text dimColor>{n === null ? '' : String(n)}</Text>
+        {n !== null && onNumber ? (
+          <Button key={`number-${n}`} plain onPress={onNumber}>
+            <Text dimColor>{String(n)}</Text>
+          </Button>
+        ) : (
+          <Text dimColor>{n === null ? '' : String(n)}</Text>
+        )}
       </Box>
       <Box width={GUTTER} flexShrink={0} justifyContent="center">
         <Text color={symbolColor}>{symbol}</Text>
@@ -172,6 +199,8 @@ export function drawPlan(elements: Elements, current: Review, actions: Actions):
     const unit = unitRange(layout, n)
     const isSelected = selected !== null && selected.start === unit.start
     const note = n === unit.end ? current.notes[String(unit.start)] : undefined
+    const select = () => actions.onSelect(n)
+    const text = body(line, current.lines[n - 1] ?? '', isAdded ? ADDED : undefined, isSelected, widths)
     return (
       <Box key={`row-${n}`} flexDirection="column">
         {columns(
@@ -179,9 +208,14 @@ export function drawPlan(elements: Elements, current: Review, actions: Actions):
           n,
           isAdded ? '+' : '',
           ADDED,
-          <Button key={`line-${n}`} plain onPress={() => actions.onSelect(n)}>
-            {body(line, current.lines[n - 1] ?? '', isAdded ? ADDED : undefined, isSelected, widths)}
-          </Button>,
+          isLinePressable ? (
+            <Button key={`line-${n}`} plain onPress={select}>
+              {text}
+            </Button>
+          ) : (
+            <Text>{text}</Text>
+          ),
+          select,
         )}
         {note !== undefined && columns(`note-${n}`, null, '', undefined, <Text color={COMMENT}>{note}</Text>)}
       </Box>
