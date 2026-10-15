@@ -85,7 +85,10 @@ export function drawPlan(elements: Elements, current: Review, actions: Actions, 
   // be one. A desktop draws a native button, which keeps one line and drops
   // the text's colors: there the text is plain Text and the number selects.
   const isLinePressable = surface === 'terminal'
-  const width = String(current.lines.length).length
+  // The number column, in cells: 4 for every plan, as an editor keeps its
+  // gutter steady; wider only when the digits need it, plus room on a desktop
+  // for the padding of the native button the number is drawn in.
+  const width = Math.max(4, String(current.lines.length).length + (isLinePressable ? 0 : 2))
   const count = noteCount(current)
   const diff = current.previous === null ? null : diffLines(current.previous, current.lines)
   const layout = layoutMarkdown(current.lines)

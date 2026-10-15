@@ -1,7 +1,7 @@
 {
   "name": "deltaplan",
   "displayName": "DeltaPlan",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "Comment on Claude's plan line by line. See what changed as a diff.",
   "author": {
     "name": "mrsplntr",

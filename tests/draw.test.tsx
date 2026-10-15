@@ -85,3 +85,17 @@ test('on the desktop, the selected line is highlighted', () => {
   expect(shown.type).toBe('Text')
   expect(JSON.stringify(shown)).toContain('"inverse":true')
 })
+
+test('the number column is 4 wide, and wider only when the digits need it', () => {
+  const plan = (count: number) => {
+    const lines = Array.from({ length: count }, (_, i) => `line ${i + 1}`)
+    return { ...review(lines, lines), previous: null }
+  }
+  const widthOf = (count: number, surface: 'terminal' | 'desktop') =>
+    (find(drawPlan(elements, plan(count), actions, surface), 'text-1')?.children?.[0] as { props?: { width?: number } }).props?.width
+  expect(widthOf(5, 'terminal')).toBe(4)
+  expect(widthOf(120, 'terminal')).toBe(4)
+  expect(widthOf(5, 'desktop')).toBe(4)
+  // 3 digits and the desktop button's padding.
+  expect(widthOf(120, 'desktop')).toBe(5)
+})
