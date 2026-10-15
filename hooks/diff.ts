@@ -8,7 +8,8 @@ export type DiffRow =
   // the new line that now follows it. `from` is its line in the old version.
   | { kind: 'removed'; line: number; from: number; text: string }
 
-export type DiffCounts = { changed: number; added: number; removed: number }
+// Counted as git counts: a changed line is one removed and one added.
+export type DiffCounts = { added: number; removed: number }
 
 export type Diff = { rows: DiffRow[]; counts: DiffCounts }
 
@@ -52,10 +53,10 @@ export function diffLines(before: readonly string[], after: readonly string[]): 
     for (const text of after) ops.push({ kind: 'added', text })
   }
 
-  // Number the rows by the new version, and pair each run of removed lines
-  // with the added run that follows it, as git shows a changed line.
+  // Number the rows by the new version, and show each run of removed lines
+  // before the added run that follows it, as git shows a changed line.
   const rows: DiffRow[] = []
-  const counts: DiffCounts = { changed: 0, added: 0, removed: 0 }
+  const counts: DiffCounts = { added: 0, removed: 0 }
   let next = 1
   let k = 0
   while (k < ops.length) {
@@ -72,10 +73,8 @@ export function diffLines(before: readonly string[], after: readonly string[]): 
       if (o.kind === 'removed') removed.push({ text: o.text, from: o.from! })
       else added.push(o.text)
     }
-    const pairs = Math.min(removed.length, added.length)
-    counts.changed += pairs
-    counts.removed += removed.length - pairs
-    counts.added += added.length - pairs
+    counts.removed += removed.length
+    counts.added += added.length
     removed.forEach(({ text, from }, r) => rows.push({ kind: 'removed', line: next + r, from, text }))
     added.forEach((text, a) => rows.push({ kind: 'added', line: next + a, text }))
     next += added.length
@@ -83,7 +82,7 @@ export function diffLines(before: readonly string[], after: readonly string[]): 
   return { rows, counts }
 }
 
-export function describeCounts({ changed, added, removed }: DiffCounts): string {
-  return `${changed} changed · ${added} added · ${removed} removed`
+export function describeCounts({ added, removed }: DiffCounts): string {
+  return `${added} added · ${removed} removed`
 }
 

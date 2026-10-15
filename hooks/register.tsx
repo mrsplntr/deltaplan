@@ -279,10 +279,10 @@ export const register: Register = on => {
           {diff ? ` · ${describeCounts(diff.counts)}` : ''} · {count} comment{count === 1 ? '' : 's'}
         </Text>
         <Box flexDirection="row" gap={1}>
-          <Button key="up" hotkey="k" onPress={() => move($, -1)}>
+          <Button key="up" onPress={() => move($, -1)}>
             ↑
           </Button>
-          <Button key="down" hotkey="j" onPress={() => move($, 1)}>
+          <Button key="down" onPress={() => move($, 1)}>
             ↓
           </Button>
           <Input

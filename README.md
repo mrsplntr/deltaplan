@@ -65,6 +65,11 @@ If the file already has an `env` section, add the line inside it.
 2. Click a line and type a comment in the DeltaPlan comment field. Enter saves it.
 3. Press **Send feedback** to get a revised plan, or **Continue to approval** when it's ready.
 
+Shortcuts:
+
+- `↑` `↓` in the comment field: move to the previous or next line.
+- `1` `2` with the prompt empty: Continue to approval, Send feedback.
+
 ## Troubleshooting
 
 - **The normal plan dialog shows, without DeltaPlan:** run `/plugin` and check for `mods active · deltaplan`. Mods need Claude Code 2.1.287 or later. DeltaPlan is tested in the terminal.
@@ -96,6 +101,7 @@ Its hooks:
 
 - Claude Code with mod support (built and tested with 2.1.296).
 - Tested in the terminal.
+- Early release (0.1.x): the core features work, but expect rough edges. Please report problems on [GitHub Issues](https://github.com/mrsplntr/deltaplan/issues).
 
 ## Development
 

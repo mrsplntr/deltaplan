@@ -135,7 +135,7 @@ test('versions count up inside plan mode and start over after it ends', async ($
   // The revision is version 2, colored against version 1; approved.
   ;({ call, bar } = await submitPlan($, w, plan('# Plan', 'Use Postgres')))
   expect(await barText(bar)).toContain('version 2')
-  expect(await barText(bar)).toContain('1 changed')
+  expect(await barText(bar)).toContain('1 added · 1 removed')
   await bar.press({ key: 'continue' })
   w.release()
   await call
