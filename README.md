@@ -72,7 +72,7 @@ Shortcuts:
 
 ## Troubleshooting
 
-- **The normal plan dialog shows, without DeltaPlan:** run `/plugin` and check for `mods active · deltaplan`. Mods need Claude Code 2.1.287 or later. DeltaPlan is tested in the terminal.
+- **The normal plan dialog shows, without DeltaPlan:** run `/plugin` and check for `mods active · deltaplan`. Mods need Claude Code 2.1.287 or later. DeltaPlan works in the terminal and the desktop app's Code tab.
 - **A red message starting with "Error:":** something failed, for example DeltaPlan couldn't read the plan file. The message says what. Claude Code's normal plan dialog opens instead, so you can still approve or refuse the plan.
 - **On Windows without Git, buttons take up to a second to respond:** DeltaPlan then waits with `ping` instead of Git's `sleep`.
 
@@ -100,7 +100,10 @@ Its hooks:
 ## Requirements
 
 - Claude Code with mod support (built and tested with 2.1.296).
-- Tested in the terminal.
+- Built for the terminal; also works in the Claude desktop app (Code tab), with small differences:
+  - click a line's number to pick it (in the terminal, anywhere on the line);
+  - `1` `2` work once the DeltaPlan bar has focus, not from the prompt;
+  - after Send feedback, the plan card says "Failed": that's the desktop's own label, the plan was sent back for revision.
 - Early release (0.1.x): the core features work, but expect rough edges. Please report problems on [GitHub Issues](https://github.com/mrsplntr/deltaplan/issues).
 
 ## Development

@@ -85,8 +85,7 @@ export function drawPlan(elements: Elements, current: Review, actions: Actions, 
   // be one. A desktop draws a native button, which keeps one line and drops
   // the text's colors: there the text is plain Text and the number selects.
   const isLinePressable = surface === 'terminal'
-  // Wide enough for the old numbers too, which removed lines show.
-  const width = String(Math.max(current.lines.length, current.previous?.length ?? 0)).length
+  const width = String(current.lines.length).length
   const count = noteCount(current)
   const diff = current.previous === null ? null : diffLines(current.previous, current.lines)
   const layout = layoutMarkdown(current.lines)
@@ -222,11 +221,10 @@ export function drawPlan(elements: Elements, current: Review, actions: Actions, 
     )
   }
 
-  // A removed line is no longer in the plan: nothing to click. It shows its
-  // number in the previous version and is
-  // formatted as the previous version laid it out.
+  // A removed line is no longer in the plan: no number, nothing to click.
+  // It is formatted as the previous version laid it out.
   const removedRow = (key: string, from: number, text: string, widths?: number[]) =>
-    columns(key, from, '-', REMOVED, <Text>{body(oldLayout[from - 1], text, REMOVED, false, widths)}</Text>)
+    columns(key, null, '-', REMOVED, <Text>{body(oldLayout[from - 1], text, REMOVED, false, widths)}</Text>)
 
   // Each run of table rows shown together (old and new versions mixed)
   // shares one set of column widths, the widest of them all, so the "│"

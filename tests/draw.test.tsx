@@ -34,21 +34,14 @@ function review(previous: string[], lines: string[]): Review {
   return { toolUseId: 't', version: 2, lines, previous, notes: {}, selected: null }
 }
 
-test('a removed line shows its number in the previous version', () => {
-  const tree = drawPlan(elements, review(['a', 'old', 'b'], ['a', 'b', 'new']), actions, 'terminal')
-  expect(numberOf(find(tree, 'removed-1'))).toBe('2')
-  // Removed lines can't be selected: their number is plain Text.
-  const numberColumn = find(tree, 'removed-1')?.children?.[0] as Node
-  expect((numberColumn.children?.[0] as Node).type).toBe('Text')
-  expect(numberOf(find(tree, 'text-3'))).toBe('3')
-})
-
-test('the number column fits the longer of the two versions', () => {
-  const old = Array.from({ length: 10 }, (_, i) => `line ${i + 1}`)
-  const tree = drawPlan(elements, review(old, old.slice(0, 9)), actions, 'terminal')
-  expect(numberOf(find(tree, 'removed-9'))).toBe('10')
-  const column = find(tree, 'text-1')?.children?.[0] as { props?: { width?: number } }
-  expect(column.props?.width).toBe(2)
+test('a removed line shows no number, and nothing to click', () => {
+  for (const surface of ['terminal', 'desktop'] as const) {
+    const tree = drawPlan(elements, review(['a', 'old', 'b'], ['a', 'b', 'new']), actions, surface)
+    expect(numberOf(find(tree, 'removed-1'))).toBe('')
+    const numberColumn = find(tree, 'removed-1')?.children?.[0] as Node
+    expect((numberColumn.children?.[0] as Node).type).toBe('Text')
+    expect(numberOf(find(tree, 'text-3'))).toBe('3')
+  }
 })
 
 test('the header counts every added and removed line', () => {
