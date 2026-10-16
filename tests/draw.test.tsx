@@ -1,14 +1,15 @@
 import { expect, test } from 'claude-code/testing'
 
 import type { Review } from '../types'
-import { drawPlan } from '../hooks/draw'
+import { decisionButtons, drawPlan } from '../hooks/draw'
 import type { Elements } from '../hooks/draw'
+import { badLabels } from './helpers/labels'
 
 // Elements drawn as plain nodes, to read the tree back.
 const elements = { Box: 'Box', Button: 'Button', Text: 'Text' } as unknown as Elements
 const actions = { onContinue() {}, onFeedback() {}, onSelect() {} }
 
-type Node = { type?: string; props?: { key?: string }; children?: unknown[] }
+type Node = { type?: string; props?: { key?: string; label?: string }; children?: unknown[] }
 
 function find(node: unknown, key: string): Node | undefined {
   if (typeof node !== 'object' || node === null) return undefined
@@ -24,6 +25,8 @@ function find(node: unknown, key: string): Node | undefined {
 function text(node: unknown): string {
   if (typeof node === 'string') return node
   if (typeof node !== 'object' || node === null) return ''
+  const label = (node as Node).props?.label
+  if (label !== undefined) return label
   return ((node as Node).children ?? []).map(text).join('')
 }
 
@@ -98,4 +101,18 @@ test('the number column is 4 wide, and wider only when the digits need it', () =
   expect(widthOf(5, 'desktop')).toBe(4)
   // 3 digits and the desktop button's padding.
   expect(widthOf(120, 'desktop')).toBe(5)
+})
+
+test('every Button a desktop draws has a one-string label', () => {
+  const lines = ['# Plan', '', '- step', '| a | b |', '|---|---|', '| 1 | 2 |', 'Run `npm test`']
+  const plan = { ...review(['# Plan', 'old'], lines), notes: { '3': 'why?' }, selected: 3 }
+  const tree = drawPlan(elements, plan, actions, 'desktop')
+  expect(badLabels(tree)).toEqual([])
+  // The bar's own set, with a comment so Send feedback is drawn too.
+  expect(badLabels(decisionButtons(elements.Button, 2, actions))).toEqual([])
+})
+
+test('the check catches a Button with other children', () => {
+  expect(badLabels({ type: 'Button', props: { key: 'x' }, children: [{ type: 'Text', children: ['1'] }] })).toEqual(['x'])
+  expect(badLabels({ type: 'Button', props: { key: 'y' }, children: ['Send feedback (', 2, ')'] })).toEqual(['y'])
 })

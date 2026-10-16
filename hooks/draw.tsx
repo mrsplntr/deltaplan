@@ -52,6 +52,8 @@ const GUTTER = 3
 // the plan row (above and below the plan), the bar, and the drawing-error
 // line. `where` keeps two sets in one tree apart; the bar's alone (no
 // `where`) carry the hotkeys 1 and 2 and the plain keys its focus order names.
+// Every Button a desktop may draw has one string as its label: the desktop
+// app refuses any other children (tests/helpers/labels.ts checks it).
 export function decisionButtons(
   Button: ElementConstructor<ButtonProps>,
   count: number,
@@ -72,7 +74,7 @@ export function decisionButtons(
   if (count > 0) {
     buttons.push(
       <Button key={isBar ? 'feedback' : `feedback-${where}`} {...(isBar ? { hotkey: '2' } : {})} onPress={actions.onFeedback}>
-        Send feedback ({count})
+        {`Send feedback (${count})`}
       </Button>,
     )
   }
@@ -110,8 +112,8 @@ export function drawPlan(elements: Elements, current: Review, actions: Actions, 
     <Box key={key} flexDirection="row">
       <Box width={width} flexShrink={0} justifyContent="flex-end">
         {n !== null && onNumber ? (
-          <Button key={`number-${n}`} plain onPress={onNumber}>
-            <Text dimColor>{String(n)}</Text>
+          <Button key={`number-${n}`} plain dimColor onPress={onNumber}>
+            {String(n)}
           </Button>
         ) : (
           <Text dimColor>{n === null ? '' : String(n)}</Text>

@@ -2,6 +2,8 @@ import { expect, mock, test } from 'claude-code/testing'
 import type { Engine } from 'claude-code/testing'
 import type { On } from 'claude-code'
 
+import { badLabels } from './helpers/labels'
+
 const PLAN_PATH = 'C:/plans/plan.md'
 
 // The comment bar's props, as the terminal hands them.
@@ -56,12 +58,12 @@ function world(on: On, options: { waitFails?: boolean } = {}) {
 
 // Claude submits `text` as its plan; resolves once the mod holds it, with
 // the comment bar drawn and the call still running.
-async function submitPlan($: Engine, w: ReturnType<typeof world>, text: string) {
+async function submitPlan($: Engine, w: ReturnType<typeof world>, text: string, surface: 'terminal' | 'desktop' = 'terminal') {
   w.seen.text = text
   const isHeld = w.held()
   const call = $.tool.call({ tool: 'ExitPlanMode' })
   await isHeld
-  const bar = await $.ui.mount({ plugin: 'deltaplan', surface: 'terminal', ...BAR })
+  const bar = await $.ui.mount({ plugin: 'deltaplan', surface, ...BAR })
   return { call, bar }
 }
 
@@ -176,4 +178,21 @@ test('a failed wait says so and falls back to the normal dialog', async ($, on) 
   expect(w.seen.toasts).toHaveLength(1)
   expect(w.seen.toasts[0]).toContain('Error: the wait command failed (')
   expect(w.seen.toasts[0]).toContain('Showing the normal plan dialog instead.')
+})
+
+test('on the desktop, every Button of the bar has a one-string label', async ($, on) => {
+  const w = world(on)
+  await enterPlanMode($)
+  const { call, bar } = await submitPlan($, w, plan('# Plan', 'Use Redis'), 'desktop')
+  expect(badLabels(await bar.drawn())).toEqual([])
+  // With a comment, Send feedback is drawn too.
+  await bar.press({ key: 'down' })
+  await bar.redraw()
+  await bar.input({ key: 'comment', text: 'Why?' })
+  await bar.redraw()
+  expect(badLabels(await bar.drawn())).toEqual([])
+  await bar.press({ key: 'continue' })
+  w.release()
+  await call
+  await bar.unmount()
 })

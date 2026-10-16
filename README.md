@@ -100,7 +100,7 @@ Its hooks:
 ## Requirements
 
 - Claude Code with mod support (built and tested with 2.1.296).
-- Built for the terminal; also works in the Claude desktop app (Code tab), with small differences:
+- Built for the terminal; also works in the Claude desktop app's Code tab (tested with desktop app 2.42304.0), with small differences:
   - click a line's number to pick it (in the terminal, anywhere on the line);
   - `1` `2` work once the DeltaPlan bar has focus, not from the prompt;
   - after Send feedback, the plan card says "Failed": that's the desktop's own label, the plan was sent back for revision.
